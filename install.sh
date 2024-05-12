@@ -78,7 +78,7 @@ function install_apache_dependencies {
   apt upgrade
 
   # Install Dependencies
-  apt-get -y install php8.2 php8.2-gd php8.2-mysql php8.2-gd php8.2-mbstring php8.2-bcmath php8.2-xml php8.2-curl php8.2-zip php8.2-intl php8.2-fpm php8.2-ext-intl php8.2-ext-pdo_mysql php8.2-ext-zip curl tar libapache2-mod-php certbot software-properties-common
+  apt-get -y install php8.2 php8.2-gd php8.2-mysql php8.2-gd php8.2-mbstring php8.2-bcmath php8.2-xml php8.2-curl php8.2-zip php8.2-intl php8.2-fpm curl tar libapache2-mod-php certbot software-properties-common
   curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
 }
 
