@@ -78,7 +78,7 @@ function install_apache_dependencies {
   apt upgrade
 
   # Install Dependencies
-  apt-get -y install php8.2 php8.2-gd php8.2-mysql php8.2-gd php8.2-mbstring php8.2-bcmath php8.2-xml php8.2-curl php8.2-zip php8.2-intl php8.2-fpm curl tar libapache2-mod-php socat certbot
+  apt-get -y install php8.2 php8.2-gd php8.2-mysql php8.2-gd php8.2-mbstring php8.2-bcmath php8.2-xml php8.2-curl php8.2-zip php8.2-intl php8.2-fpm curl tar libapache2-mod-php certbot
   curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
 }
 
@@ -93,7 +93,7 @@ function install_nginx_dependencies {
   apt upgrade
 
   # Install Dependencies
-  apt-get -y install php8.2 php8.2-gd php8.2-mysql php8.2-gd php8.2-mbstring php8.2-bcmath php8.2-xml php8.2-curl php8.2-zip php8.2-intl php8.2-fpm curl tar libapache2-mod-php certbot socat
+  apt-get -y install php8.2 php8.2-gd php8.2-mysql php8.2-gd php8.2-mbstring php8.2-bcmath php8.2-xml php8.2-curl php8.2-zip php8.2-intl php8.2-fpm curl tar libapache2-mod-php certbot
   curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
 }
 
@@ -128,13 +128,7 @@ function panel_queuelisteners {
 
 function ssl_certs {
   output "Generating SSL certificates"
-  cd /root
-  curl https://get.acme.sh | sh
-  cd /root/.acme.sh/
-  sh acme.sh --issue --apache -d $FQDN
-
-  mkdir -p /etc/letsencrypt/live/$FQDN
-  ./acme.sh --install-cert -d $FQDN --certpath /etc/letsencrypt/live/$FQDN/cert.pem --keypath /etc/letsencrypt/live/$FQDN/privkey.pem --fullchainpath /etc/letsencrypt/live/$FQDN/fullchain.pem
+  certbot certonly --standalone --preferred-challenges http -d $FQDN
 }
 
 function panel_webserver_configuration_nginx {
