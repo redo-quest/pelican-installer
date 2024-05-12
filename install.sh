@@ -144,34 +144,22 @@ function panel_webserver_configuration_nginx {
 function panel_webserver_configuration_apache {
   output "Configuring apache"
   a2dissite 000-default.conf
-cat > /etc/apache2/sites-available/pterodactyl.conf << EOF
+cat > /etc/apache2/sites-available/pelican.conf << EOF
 <IfModule mod_ssl.c>
-<    <VirtualHost *:80>
-        ServerName <domain>
-        
-        RewriteEngine On
-        RewriteCond %{HTTPS} !=on
-        RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R,L] 
-        </VirtualHost>
-
-        <VirtualHost *:443>
-        ServerName <domain>
-        DocumentRoot "/var/www/pelican/public"
-
-        AllowEncodedSlashes On
-        
-        php_value upload_max_filesize 100M
-        php_value post_max_size 100M
-
-        <Directory "/var/www/pelican/public">
-            Require all granted
-            AllowOverride all
-        </Directory>
-
-        SSLEngine on
-        SSLCertificateFile /etc/letsencrypt/live/<domain>/fullchain.pem
-        SSLCertificateKeyFile /etc/letsencrypt/live/<domain>/privkey.pem
-    </VirtualHost>
+<VirtualHost *:443>
+ServerName $FQDN
+DocumentRoot "/var/www/pelican/public"
+AllowEncodedSlashes On
+php_value upload_max_filesize 100M
+php_value post_max_size 100M
+<Directory "/var/www/pelican/public">
+Require all granted
+AllowOverride all
+</Directory>
+SSLEngine on
+SSLCertificateFile /etc/letsencrypt/live/$FQDN/fullchain.pem
+SSLCertificateKeyFile /etc/letsencrypt/live/$FQDN/privkey.pem
+</VirtualHost>
 </IfModule>
 EOF
 
@@ -179,7 +167,8 @@ echo -e "<VirtualHost *:80>\nRewriteEngine on\nRewriteCond %{SERVER_NAME} =$FQDN
 
   sudo ln -s /etc/apache2/sites-available/pelican.conf /etc/apache2/sites-enabled/pelican.conf
   sudo a2enmod rewrite
-  sudo systemctl restart apache2
+  sudo a2enmod ssl
+  service apache2 restart
 }
 
 #All daemon related install functions
