@@ -85,7 +85,7 @@ main_loop() {
 install_wings() {
     clear
     echo "Redirecting"
-    curl -sSfL https://raw.githubusercontent.com/pavl21/pterodactyl-gui-installer/main/wings-installer.sh | bash
+    curl -sSfL https://raw.githubusercontent.com/v182/pelican-installer/dev/wings.sh | bash
     exit 0
 }
 
