@@ -1,250 +1,593 @@
 #!/bin/bash
-#Install script to install Pelican panel v1 (beta) and Wings daemon on Ubuntu (20.04, 22.04, 24.04)
-function output() {
-  echo -e '\e[93m'$1'\e[0m'; 
+#script to install pelican panel on debian (11) and/or [partly working, use debian] ubuntu 20.04, 22.04, 24.04 DEV version
+
+if ! command -v apt-get &> /dev/null; then
+    echo "Only Ubuntu and Debian are currently supported."
+    exit 1
+fi
+
+
+OS_INFO=$(cat /etc/os-release)
+DEBIAN_VERSION=$(echo "$OS_INFO" | grep 'VERSION_ID' | cut -d '"' -f 2)
+DEBIAN_PRETTY_NAME=$(echo "$OS_INFO" | grep 'PRETTY_NAME' | cut -d '"' -f 2)
+
+if [ "$DEBIAN_VERSION" != "11" ]; then
+    clear
+    echo "'$DEBIAN_PRETTY_NAME' is not supported. If you still want to try wait 15 seconds."
+
+    sleep 15
+
+fi
+
+validate_email() {
+    if [[ $1 =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$ ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
-function installchoice {
-  output "This install script is only meant for use on fresh OS installs. Installing on a non-fresh OS could break things."
-  output "Please select what you would like to install:\n[1] Install the panel.\n[2] Install the daemon.\n[3] Install the panel and daemon."
-  read choice
-  case $choice in
-      1 ) installoption=1
-          output "You have selected panel installation only."
-          ;;
-      2 ) installoption=2
-          output "You have selected daemon installation only."
-          ;;
-      3 ) installoption=3
-          output "You have selected panel and daemon installation."
-          ;;
-      * ) output "You did not enter a a valid selection"
-          installchoice
-  esac
+check_panel_reachability() {
+    if curl --output /dev/null --silent --head --fail "https://$panel_domain"; then
+        echo "Panel available."
+    else
+        echo "Panel unavailable. For any support contact vqbit on discord."
+        exit 1
+    fi
 }
 
-function webserverchoice {
-  output "Please select which web server you would like to use:\n[1] nginx.\n[2] apache."
-  read choice
-  case $choice in
-      1 ) webserver=1
-          output "You have selected nginx."
-          ;;
-      2 ) webserver=2
-          output "You have selected apache."
-          ;;
-      * ) output "You did not enter a a valid selection"
-          webserverchoice
-  esac
+export TEXTDOMAIN=dialog
+export LANGUAGE=en_EN.UTF-8
+
+# Globale Konfigurationsvariablen
+DOMAIN_REGEX="^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6}$"
+LOG_FILE="wlog.txt"
+INSTALLER_URL="https://pterodactyl-installer.se"
+
+# Funktion zur Generierung einer zufälligen dreistelligen Zahl
+generate_random_number() {
+    echo $((RANDOM % 900 + 100))
 }
 
-function required_vars_panel {
-    output "Please enter your FQDN:"
-    read FQDN
+main_loop() {
+    while true; do
+        if [ -d "/var/www/pelican" ]; then
+            MAIN_MENU=$(whiptail --title "Pelican Installer (dev version)" --menu "Pelican already installed.\nChoose:" 30 90 13 \
+                "1" "Uninstall Pelican" \
+                "2" "Cancel" 3>&1 1>&2 2>&3)
+            exitstatus=$?
 
-    output "Please enter your timezone in PHP format:"
-    read timezone
+            if [ $exitstatus != 0 ]; then
+                clear
+                echo "Closed."
+                echo ""
+                exit
+            fi
 
-    output "Please enter your desired first name:"
-    read firstname
-
-    output "Please enter your desired last name:"
-    read lastname
-
-    output "Please enter your desired username:"
-    read username
-
-    output "Please enter the desired user email address:"
-    read email
-
-    output "Please enter the desired password:"
-    read userpassword
+            clear
+            case $MAIN_MENU in
+                1) uninstall_pelican ;;
+                2)
+                   clear
+                   echo ""
+                   echo "INFO - - - - - - - - - -"
+                   echo "Closed."
+                   exit 0
+                   ;;
+            esac
+        else
+            echo "Success, continouing.."
+            return
+        fi
+    done
 }
 
-function required_vars_daemon {
-  output "Please enter your FQDN"
-  read FQDN
+install_wings() {
+    clear
+    echo "Redirecting"
+    curl -sSfL https://raw.githubusercontent.com/pavl21/pterodactyl-gui-installer/main/wings-installer.sh | bash
+    exit 0
 }
 
-#All panel related install functions
-function install_apache_dependencies {
-  output "Installing apache dependencies"
-  # Add additional PHP packages.
-  add-apt-repository ppa:ondrej/php
-  curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash
-  apt install apache2
-  # Update APT
-  apt update
-  apt upgrade
-
-  # Install Dependencies
-  apt-get -y install php8.3 php8.3-gd php8.3-mysql php8.3-gd php8.3-mbstring php8.3-bcmath php8.3-xml php8.3-curl php8.3-zip php8.3-intl php8.3-fpm curl tar libapache2-mod-php certbot software-properties-common
-  curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
+validate_domain() {
+    local domain=$1
+    if [[ $domain =~ ^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+        return 0  
+    else
+        return 1  
+    fi
 }
 
-function install_nginx_dependencies {
-  output "Installing nginx dependencies"
-  # Add additional PHP packages.
- add-apt-repository ppa:ondrej/php
-  curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash
-  apt install nginx
-  # Update APT
-  apt update
-  apt upgrade
 
-  # Install Dependencies
-  apt-get -y install php8.3 php8.3-gd php8.3-mysql php8.3-gd php8.3-mbstring php8.3-bcmath php8.3-xml php8.3-curl php8.3-zip php8.3-intl php8.3-fpm curl tar libapache2-mod-php certbot software-properties-common
-  curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
-}
+uninstall_pelican() {
+    log_file="uninstall_pelican.txt"
+    : > "$log_file" 
 
-function panel_downloading {
-  output "Downloading the panel"
-  mkdir -p /var/www/pelican
-  cd /var/www/pelican
 
-  curl -Lo panel.tar.gz https://github.com/pelican-dev/panel/releases/latest/download/panel.tar.gz
-  tar -xzvf panel.tar.gz
+    if ! whiptail --title "Are you sure?" 10 50; then
+        echo "Cancelled."
+        return
+    fi
 
-  chmod -R 755 storage/* bootstrap/cache/
-}
+    if whiptail --title "Do you want to keep all creates volumes/servers?" 10 50; then
+        total_size=$(du -sb /var/lib/pelican/volumes/ | cut -f1)
+        (cd /var/lib/pelican/volumes/ && tar -cf - . | pv -n -s "$total_size" | gzip > /volumes.tar.gz) 2>&1 | whiptail --gauge "Creating Backup.." 6 50 0
+        if ! whiptail --title "Backup" --yesno "Backup created. continoue?" 10 50; then
+            echo "Cancelled."
+            return
+        fi
+    fi
 
-function panel_installing {
-  output "Installing the panel"
-  composer install --no-dev --optimize-autoloader
+    while true; do
+        CONFIRMATION=$(whiptail --title "Confirmation" --inputbox "Please type 'Delete Pelican'" 10 50 3>&1 1>&2 2>&3)
+        if [ "$CONFIRMATION" = "Delete Pelican" ]; then
+            break
+        else
+            whiptail --title "Wrong." --msgbox "Try again." 10 50
+        fi
+    done
 
-  php artisan p:environment:setup
-  php artisan p:environment:database
-  php artisan p:environment:mail
-  php artisan migrate --seed --force
-  php artisan p:user:make
-}
-
-function panel_queuelisteners {
-  output "Creating panel queue listeners"
-  (crontab -l ; echo "* * * * * php /var/www/pelican/artisan schedule:run >> /dev/null 2>&1")| crontab -
-
-  chown -R www-data:www-data /var/www/pelican/* 
-}
-
-function ssl_certs {
-  output "Generating SSL certificates"
-  certbot certonly --standalone --preferred-challenges http -d $FQDN
-}
-
-function panel_webserver_configuration_nginx {
-  output "ngingwebconf"
-}
-
-function panel_webserver_configuration_apache {
-  output "Configuring apache"
-  a2dissite 000-default.conf
-cat > /etc/apache2/sites-available/pelican.conf << EOF
-<IfModule mod_ssl.c>
-<VirtualHost *:443>
-ServerName $FQDN
-DocumentRoot "/var/www/pelican/public"
-AllowEncodedSlashes On
-php_value upload_max_filesize 100M
-php_value post_max_size 100M
-<Directory "/var/www/pelican/public">
-Require all granted
-AllowOverride all
-</Directory>
-SSLEngine on
-SSLCertificateFile /etc/letsencrypt/live/$FQDN/fullchain.pem
-SSLCertificateKeyFile /etc/letsencrypt/live/$FQDN/privkey.pem
-</VirtualHost>
-</IfModule>
+    progress=0
+    {
+        bash <(curl -s https://pterodactyl-installer.se) <<EOF 2>&1 | while IFS= read -r line; do
+6
+y
+y
+y
+y
+y
 EOF
+            echo "$line" >> "$log_file"
+            case "$line" in
+                *SUCCESS:\ Removed\ panel\ files.*)
+                    progress=5 ;;
+                *Removing\ cron\ jobs...*)
+                    progress=10 ;;
+                *SUCCESS:\ Removed\ cron\ jobs.*)
+                    progress=20 ;;
+                *Removing\ database...*)
+                    progress=30 ;;
+                *SUCCESS:\ Removed\ database\ and\ database\ user.*)
+                    progress=40 ;;
+                *Removing\ services...*)
+                    progress=50 ;;
+                *SUCCESS:\ Removed\ services.*)
+                    progress=60 ;;
+                *Removing\ docker\ containers\ and\ images...*)
+                    progress=70 ;;
+                *SUCCESS:\ Removed\ docker\ containers\ and\ images.*)
+                    progress=80 ;;
+                *Removing\ wings\ files...*)
+                    progress=90 ;;
+                *SUCCESS:\ Removed\ wings\ files.*)
+                    progress=95 ;;
+                *Thank\ you\ for\ using\ this\ script.*)
+                    progress=100 ;;
+            esac
 
-echo -e "<VirtualHost *:80>\nRewriteEngine on\nRewriteCond %{SERVER_NAME} =$FQDN\nRewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,QSA,R=permanent]\n</VirtualHost>" > /etc/apache2/sites-available/000-default.conf
+            echo "XXX"
+            echo "Deinstalling.."
+            echo "XXX"
+            echo $progress
+        done
+    } | whiptail --title "🗑️  Deinstallation" --gauge "Deinstalling" 6 50 0
 
-  sudo ln -s /etc/apache2/sites-available/pelican.conf /etc/apache2/sites-enabled/pelican.conf
-  sudo a2enmod rewrite
-  sudo a2enmod ssl
-  service apache2 restart
+    # Abschlussmeldung
+    whiptail --title "Completed" --msgbox "Deleted successfully." 10 50
+    clear
 }
 
-#All daemon related install functions
-function update_kernel {
-  output "Updating kernel if needed"
-  apt install -y linux-image-extra-$(uname -r) linux-image-extra-virtual
+
+main_loop
+
+recreate_user() {
+    {
+        echo "10"; sleep 1
+        echo "Deleting Use..."
+        cd /var/www/pelican && echo -e "1\n1\nyes" | php artisan p:user:delete
+        echo "30"; sleep 1
+        echo "Creating... With Mail: $admin_email With password: $user_password"
+        cd /var/www/pelican && php artisan p:user:make --email="$admin_email" --username=admin --name-first=Admin --name-last=User --password="$user_password" --admin=1
+        echo "100"; sleep 1
+    } | whiptail --gauge "User creating" 8 50 0
 }
 
-function daemon_dependencies {
-  output "Installing daemon dependecies"
-  #Docker
-  curl -sSL https://get.docker.com/ | sh
-  systemctl enable docker
 
-  #Nodejs
-  curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
-  apt install -y nodejs
-
-  #Additional
-  apt install -y tar unzip make gcc g++ python
+isValidDomain() {
+    DOMAIN_REGEX="^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    if [[ $1 =~ $DOMAIN_REGEX ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
-function daemon_install {
-  output "Installing the daemon"
-  mkdir -p /srv/daemon /srv/daemon-data
-  cd /srv/daemon
-  curl -Lo v0.4.3.tar.gz https://github.com/Pterodactyl/Daemon/archive/v0.4.3.tar.gz
-  tar --strip-components=1 -xzvf v0.4.3.tar.gz
-  npm install --only=production
+clear
+clear
+echo "Pelican Installation (inspired by the germandactyl installer (german ptero) from pavl21)"
+sleep 3 
 
-  echo -e "[Unit]\nDescription=Pterodactyl Wings Daemon\nAfter=docker.service\n\n[Service]\nUser=root\n#Group=some_group\nWorkingDirectory=/srv/daemon\nLimitNOFILE=4096\nPIDFile=/var/run/wings/daemon.pid\nExecStart=/usr/bin/node /srv/daemon/src/index.js\nRestart=on-failure\nStartLimitInterval=600\n\n[Install]\nWantedBy=multi-user.target" > /etc/systemd/system/wings.service
-  systemctl daemon-reload
-  systemctl enable wings
+if [ "$(id -u)" != "0" ]; then
+    echo "Please use root."
+    exit 1
+fi
+
+
+clear
+echo ""
+echo ""
+echo "STATUS - - - - - - - - - - - - - - -"
+echo ""
+
+show_spinner() {
+    local pid=$1
+    local delay=0.45
+    local spinstr='|/-\\'
+    local msg="Installing Dependencies.."
+    while [ "$(ps a | awk '{print $1}' | grep -w $pid)" ]; do
+        local temp=${spinstr#?}
+        printf " [%c]  $msg" "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\r"
+        for i in $(seq 1 $((${#msg} + 10))); do  
+            printf " "
+        done
+        printf "\r"
+    done
+    printf "                                             \r"
 }
 
-# Time for some user input
-installchoice
 
-# Let's figure out what we actually are going to install based on user input
-case $installoption in
-  1 ) webserverchoice #Panel only, so we show the webserver selection
-      required_vars_panel #Gather some user data we need for the installation
-      case $webserver in #Install based on choice
-        1 ) install_nginx_dependencies
-            panel_downloading
-            panel_installing
-            panel_queuelisteners
-            panel_webserver_configuration_nginx
-            output "Panel installation completed!"
-            ;;
-        2 ) install_apache_dependencies
-            panel_downloading
-            panel_installing
-            panel_queuelisteners
-            ssl_certs
-            panel_webserver_configuration_apache
-            output "Panel installation completed"
-            ;;
-      esac
+(
+    dpkg --configure -a
+    apt-get update &&
+    apt-get upgrade -y &&
+    sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install -y whiptail dnsutils curl expect openssl bc certbot python3-certbot-nginx pv sudo wget
+) > /dev/null 2>&1 &
+
+PID=$!
+
+show_spinner $PID
+
+wait $PID
+exit_status=$?
+
+
+if [ $exit_status -ne 0 ]; then
+    echo "A error spawned in.. contact vqbit on discord for support"
+    exit $exit_status
+fi
+
+clear
+echo ""
+echo ""
+echo "STATUS - - - - - - - - - - - - - - - -"
+echo ""
+echo "Installed Dependencies successfully"
+sleep 2
+
+IP_ADDRESS=$(hostname -I | awk '{print $1}')
+SYSTEM_NAME=$(uname -o)
+
+if [[ $IP_ADDRESS == 192.168.* ]] || [[ $IP_ADDRESS == 10.0.* ]] || ([[ $IP_ADDRESS == 172.16.* ]] && [[ $IP_ADDRESS != 172.32.* ]]); then
+    # Sichere die aktuelle NEWT_COLORS Umgebungsvariable
+    OLD_NEWT_COLORS=$NEWT_COLORS
+
+    export NEWT_COLORS='
+    root=,red
+    window=,purple
+    border=white,red
+    textbox=white,purple
+    button=black,white
+    entry=,purple
+    checkbox=,purple
+    compactbutton=,purple
+    '
+
+    # Zeige das Whiptail-Fenster an
+    if whiptail --title "Local Network (NR)" --yesno "Local Network neither supported nor recommended. Continoue?" 20 80; then
+        echo "Loading.."
+    else
+        echo "Cancelled."
+        exit 1
+    fi
+
+    export NEWT_COLORS=$OLD_NEWT_COLORS
+else
+    echo "Loading.."
+    clear
+fi
+
+
+if whiptail --title "Pelican Install Script" --yesno "Pelican Installer by v182 (vqbit) inspired by germandactyl (german ptero) (by pavl21) - Cotinoue?
+
+
+Continoue?" 22 70; then
+    echo "Loading.."
+else
+    echo "STATUS - - - - - - - - - - - - - - - -"
+    echo ""
+    echo "Cancelled"
+    exit 1
+fi
+
+
+CHOICE=$(whiptail --title "Pelican Installer" --menu "dev version" 15 60 4 \
+"1" "Install Panel & Wings" \
+"2" "Install Wings" 3>&1 1>&2 2>&3)
+
+EXITSTATUS=$?
+
+if [ $EXITSTATUS = 0 ]; then
+  case $CHOICE in
+    1)
+      echo "Installing.."
       ;;
-  2 ) #Daemon only
-      update_kernel
-      daemon_dependencies
+    2)
+      install_wings
+      exit 0
       ;;
-  3 ) webserverchoice #Panel and daemon, so we show the webserver selection
-      required_vars_panel #Gather some user data we need for the installation
-      case $webserver in #Install based on choice
-        1 ) install_nginx_dependencies
-            ;;
-        2 ) install_apache_dependencies
-            panel_downloading
-            panel_installing
-            panel_queuelisteners
-            ssl_certs
-            panel_webserver_configuration_apache
-            output "Panel installation completed"
+  esac
+else
+  exit 0
+fi
 
-            update_kernel
-            daemon_dependencies
-            daemon_install
-            output "Daemon installation completed"
-            ;;
-      esac
-      ;;
-esac
+LOG_FILE="tmp.txt"
+if [ ! -f "$LOG_FILE" ]; then
+    touch "$LOG_FILE"
+fi
+
+clear
+
+#!/bin/bash
+
+# Überprüfe die CPU-Architektur
+output=$(uname -m)
+echo "Aktuelle CPU-Architektur: $output"
+
+if [ "$output" != "x86_64" ]; then
+    # Setze NEWT_COLORS nur für dieses spezifische Fenster
+    OLD_NEWT_COLORS=$NEWT_COLORS
+    export NEWT_COLORS='
+    root=,red
+    window=,purple
+    border=white,purple
+    textbox=white,purple
+    button=black,white
+    entry=,purple
+    checkbox=,purple
+    compactbutton=,purple
+    '
+
+    if whiptail --title "CPU not recommended" --yesno "Continoue?" 20 70; then
+        echo
+        echo "Loading.."
+        cpu_arch_conflict=true
+    else
+        clear
+        echo "STATUS - - - - - - - - - -"
+        echo ""
+        echo "Cancelled."
+        export NEWT_COLORS=$OLD_NEWT_COLORS
+        exit 0
+    fi
+
+    export NEWT_COLORS=$OLD_NEWT_COLORS
+else
+    echo "Loading.."
+fi
+
+
+while true; do
+    panel_domain=$(whiptail --title "Pelican Installer" --inputbox "Panel FQDN?" 12 60 3>&1 1>&2 2>&3)
+
+    if [ $? -ne 0 ]; then
+        echo "Cancelled."
+        exit 1
+    fi
+
+    if [[ $panel_domain =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+        break
+    else
+        whiptail --title "Not a valid domain." --msgbox "Please use a valid one." 10 50
+    fi
+done
+
+server_ip=$(hostname -I | awk '{print $1}')
+dns_ip=$(dig +short $panel_domain)
+
+if [ "$dns_ip" == "$server_ip" ]; then
+    whiptail --title "Success, loading.." 8 78
+else
+    whiptail --title "Domain doesnt point to this machines IP address." 15 80
+    exit 1
+fi
+
+
+validate_email() {
+    if [[ $1 =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,10}$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+while true; do
+    admin_email=$(whiptail --title "Pelican Installer" --inputbox "Input Email Address" 12 60 3>&1 1>&2 2>&3)
+
+    if [ $? -ne 0 ]; then
+        echo "Cancelled."
+        exit 1
+    fi
+
+    if validate_email "$admin_email"; then
+        break
+    else
+        whiptail --title "email not valid." --msgbox  "Input a valid email" 10 50
+    fi
+done
+
+generate_userpassword() {
+    < /dev/urandom tr -dc A-Za-z0-9 | head -c32
+}
+
+user_password=$(generate_userpassword)
+
+generate_dbpassword() {
+    tr -dc 'A-Za-z0-9' </dev/urandom | head -c64
+}
+
+database_password=$(generate_dbpassword)
+
+TITLE="Loading.."
+MESSAGE="Installing.. this could take a bit.."
+TOTAL_TIME=10
+STEP_DURATION=$((TOTAL_TIME * 1000 / 100)) # in Millisekunden
+{
+    for ((i=100; i>=0; i--)); do
+        echo $i
+        sleep 0.05
+    done
+} | whiptail --gauge "$MESSAGE" 8 78 0
+
+update_progress() {
+    percentage=$1
+    message=$2
+    echo -e "XXX\n$percentage\n$message\nXXX"
+}
+monitor_progress() {
+    highest_progress=0
+    {
+        while read line; do
+            current_progress=0
+            case "$line" in
+                *"* Assume SSL? false"*)
+                    update_progress 5 "Setting up all settings.." ;;
+                *"Selecting previously unselected package apt-transport-https."*)
+                    update_progress 10 "Starting Installation.." ;;
+                *"Selecting previously unselected package mysql-common."*)
+                    update_progress 15 "Installing MariaDB" ;;
+                *"Unpacking php8.3-zip"*)
+                    update_progress 20 "Installing PHP 8.3" ;;
+                *"Created symlink /etc/systemd/system/multi-user.target.wants/mariadb.service → /lib/systemd/system/mariadb.service."*)
+                    update_progress 25 "MariaDB wird eingerichtet..." ;;
+                *"Created symlink /etc/systemd/system/multi-user.target.wants/php8.3-fpm.service → /lib/systemd/system/php8.1-fpm.service."*)
+                    update_progress 30 "FPM installing" ;;
+                *"Executing: /lib/systemd/systemd-sysv-install enable mariadb"*)
+                    update_progress 35 "Setting up MariaDB" ;;
+                *"* Installing composer.."*)
+                    update_progress 40 "Installing Composer" ;;
+                *"* Downloading pelican panel files .. "*)
+                    update_progress 45 "Downloading Pelican Files.." ;;
+                *"database/.gitignore"*)
+                    update_progress 50 "DB Migrations..." ;;
+                *"database/Seeders/eggs/"*)
+                    update_progress 55 "Eggs.." ;;
+                *"* Installing composer dependencies.."*)
+                    update_progress 60 "Composer extensions installing.." ;;
+                *"* Creating database user pelican..."*)
+                    update_progress 65 "Creating DB.." ;;
+                *"INFO  Running migrations."*)
+                    update_progress 70 "Migrations werden gestartet..." ;;
+                *"* Installing cronjob.. "*)
+                    update_progress 75 "Cronjob setup.." ;;
+                *"* Installing pteroq service.."*)
+                    update_progress 80 "Backend.." ;;
+                *"Saving debug log to /var/log/letsencrypt/letsencrypt.log"*)
+                    update_progress 85 "SSL Setup.." ;;
+                *"Congratulations! You have successfully enabled"*)
+                    update_progress 90 "Certificate created.." ;;
+                *"Searching Pelican"*)
+                    update_progress 95 "Installing.. this could take a bit" ;;
+                *"Success"*)
+                    update_progress 100 "Closing.." ;;
+            esac
+            if [ "$current_progress" -gt "$highest_progress" ]; then
+                highest_progress=$current_progress
+                update_progress $highest_progress "Status..."
+            fi
+        done < <(tail -n 0 -f tmp.txt)
+    } | whiptail --title "Pelican Panel installing" --gauge "Pelican Panel - Installation" 10 70 0
+}
+
+
+monitor_progress &
+MONITOR_PID=$!
+
+
+{
+    bash <(curl -s https://pterodactyl-installer.se) <<EOF
+    0
+    $( [[ "$cpu_arch_conflict" == "true" ]] && echo "y" )
+    panel
+    pterodactyl
+    $database_password
+    Europe/Berlin
+    $admin_email
+    $admin_email
+    admin
+    Admin
+    User
+    $user_password
+    $panel_domain
+    N
+    N
+    N
+    y
+    yes
+EOF
+} >> tmp.txt 2>&1
+
+
+{
+    apt-get update && sudo apt-get install certbot python3-certbot-nginx -y
+    systemctl stop nginx
+    certbot --nginx -d $panel_domain --email $admin_email --agree-tos --non-interactive
+    fuser -k 80/tcp
+    fuser -k 443/tcp
+    systemctl restart nginx
+    curl -sSL https://install.germandactyl.de/ | sudo bash -s -- -v1.11.3
+} >> tmp.txt 2>&1
+
+
+kill $MONITOR_PID
+sleep 1
+
+
+whiptail --clear
+clear
+recreate_user
+
+
+show_access_data() {
+    whiptail --title "Details" --msgbox "Be sure to save these details.\n\nPanel: $panel_domain\n\n User: admin\n Email: $admin_email\n Password: $user_password \n\n" 22 80
+}
+
+clear
+whiptail --title "Installation succeded" --msgbox "Pelican should be available now. Log in using the following details.\n\nas " 22 80
+
+
+while true; do
+    show_access_data
+
+    if whiptail --title "Success" --yesno "User working?" 10 60; then
+        if whiptail --title "Zugang geht?" --yesno "Funktionieren die Zugangsdaten?" 10 60; then
+            if whiptail --title "Wings" --yesno "Install Wings?" 10 60; then
+                clear
+                install_wings
+                exit 0
+            else
+                whiptail --title "Cancelled." --msgbox "Wings Installation was cancelled." 10 60
+                exit 0
+            fi
+        else
+            recreate_user
+        fi
+    else
+        break
+    fi
+done
+
+clear
+echo "Done"
