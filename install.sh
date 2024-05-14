@@ -15,7 +15,7 @@ if [ "$DEBIAN_VERSION" != "11" ]; then
     clear
     echo "'$DEBIAN_PRETTY_NAME' is not supported. If you still want to try wait 15 seconds."
 
-    sleep 15
+    sleep 5
 
 fi
 
@@ -255,7 +255,7 @@ exit_status=$?
 
 
 if [ $exit_status -ne 0 ]; then
-    echo "A error spawned in.. contact vqbit on discord for support"
+    echo "Unkown Error. This issue is known, please try again. It will work after 2-3 trys."
     exit $exit_status
 fi
 
@@ -508,7 +508,7 @@ monitor_progress() {
                 update_progress $highest_progress "Status..."
             fi
         done < <(tail -n 0 -f tmp.txt)
-    } | whiptail --title "Pelican Panel installing" --gauge "Pelican Panel - Installation" 10 70 0
+    } | whiptail --title "Pelican Panel installing" --gauge "Pelican Panel - Installation - This could take a while" 10 70 0
 }
 
 
@@ -518,10 +518,9 @@ MONITOR_PID=$!
 
 {
 cd /
-sudo add-apt-repository ppa:ondrej/php
+sudo apt install -y php8.2 php8.2-gd php8.2-mysql php8.2-mbstring php8.2-bcmath php8.2-xml php8.2-curl php8.2-zip php8.2-intl php8.2-sqlite3 php8.2-fpm php8.2-redis composer nginx xdotool
+xdotool key 'Return' | sudo add-apt-repository ppa:ondrej/php
 curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
-sudo apt install -y php8.2 php8.2-gd php8.2-mysql php8.2-mbstring php8.2-bcmath php8.2-xml php8.2-curl php8.2-zip php8.2-intl php8.2-sqlite3 php8.2-fpm php8.2-redis composer nginx
-Y
 mkdir -p /var/www/pelican
 cd /var/www/pelican
 curl -Lo panel.tar.gz https://github.com/pelican-dev/panel/releases/latest/download/panel.tar.gz
