@@ -13,7 +13,7 @@ Did not test it on other distros but it may also work on more..
 - for any other issues join VersionOne Development https://discord.gg/cwUDBSAVMk
 
 # Be sure to star this repository for more updates, fixes and open source projects <3
-
+# This script is inspired and partly forked from GermanDactyl by pavl21
 
 # Screenshots:
 <img width="545" alt="Screenshot1" src="https://github.com/v182/pelican-installer/assets/142740981/e0dae144-1438-4e5d-94aa-a6043ff7cbbb">
