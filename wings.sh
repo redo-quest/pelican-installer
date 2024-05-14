@@ -47,7 +47,6 @@ integrate_wings() {
         if whiptail --title "Wings Integration" --yesno "Please create a node in the panel." 10 60; then
             whiptail --title "Node setup Assistant" --msgbox "In the node settings is a deploy command and a config.yml, its explained there how you can do it but choose one of those ways and come back here." 15 100
 
-            # Prüfe, ob die Integration abgeschlossen ist
             if whiptail --title "Wings Integration" --yesno "Did you connect your node in the panel with wings?" 10 60; then
                 if [ -f /etc/pterodactyl/config.yml ]; then
                     systemctl start wings
