@@ -15,3 +15,6 @@ A script to install the Pelican Panel with a graphical ui smoothly within minute
 
 
 # Screenshots:
+
+<img width="545" alt="Screenshot1" src="https://github.com/v182/pelican-installer/assets/142740981/e0dae144-1438-4e5d-94aa-a6043ff7cbbb">
+<img width="545" alt="Screenshot2" src="https://github.com/v182/pelican-installer/assets/142740981/661edd71-a4ec-49a6-bc57-b51b054171f5">
