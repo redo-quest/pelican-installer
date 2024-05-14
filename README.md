@@ -1,6 +1,7 @@
 # pelican-installer dev version
 A script to install the Pelican Panel with a graphical ui smoothly within minutes! &lt;3
-
+Works on Debian and Ubuntu (ubuntu lts gives out a no support error but you can ignore it)
+Did not test it on other distros but it may also work on more..
 
 # Install
 ```wget https://raw.githubusercontent.com/v182/pelican-installer/dev/install.sh```
