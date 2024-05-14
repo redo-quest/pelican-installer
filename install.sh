@@ -483,7 +483,7 @@ monitor_progress() {
                 *"database/.gitignore"*)
                     update_progress 50 "DB Migrations..." ;;
                 *"database/Seeders/eggs/"*)
-                    update_progress 55 "Eggs.." ;;
+                    update_progress 55 "Loading.." ;;
                 *"* Installing composer dependencies.."*)
                     update_progress 60 "Composer extensions installing.." ;;
                 *"* Creating database user pelican..."*)
