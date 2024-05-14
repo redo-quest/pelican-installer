@@ -129,7 +129,7 @@ uninstall_pelican() {
 
     progress=0
     {
-     <<EOF 2>&1 | while IFS= read -r line; do
+    bash <(curl -s ) <<EOF 2>&1 | while IFS= read -r line; do
 6
 y
 y
