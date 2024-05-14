@@ -13,7 +13,7 @@ A script to install the Pelican Panel with a graphical ui smoothly within minute
 - Installing Dependencies may not work at the first try - just try again
 - for any other issues join VersionOne Development https://discord.gg/cwUDBSAVMk
 
-# Be sure to fork this repository for more updates, fixes and open source projects <3
+# Be sure to star this repository for more updates, fixes and open source projects <3
 
 
 # Screenshots:
