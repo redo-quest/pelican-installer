@@ -517,8 +517,9 @@ MONITOR_PID=$!
 
 
 {
-cd / <<EOF
-sudo apt install -y php8.2 php8.2-gd php8.2-mysql php8.2-mbstring php8.2-bcmath php8.2-xml php8.2-curl php8.2-zip php8.2-intl php8.2-sqlite3 php8.2-fpm php8.2-redis composer nginx xdotool
+cd /
+sudo apt install -y xdotool
+xdotool key 'Return' | sudo apt install -y php8.3 php8.3-gd php8.3-mysql php8.3-mbstring php8.3-bcmath php8.3-xml php8.3-curl php8.3-zip php8.3-intl php8.3-sqlite3 php8.3-fpm php8.3-redis composer nginx
 xdotool key 'Return' | sudo add-apt-repository ppa:ondrej/php
 curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
 mkdir -p /var/www/pelican
@@ -526,16 +527,24 @@ cd /var/www/pelican
 curl -Lo panel.tar.gz https://github.com/pelican-dev/panel/releases/latest/download/panel.tar.gz
 tar -xzvf panel.tar.gz
 chmod -R 755 storage/* bootstrap/cache/
-composer install --no-dev --optimize-autoloader
-yes
+xdotool key 'Return' | composer install --no-dev --optimize-autoloader
 php artisan p:environment:setup
+$panel_domain
+file
+database
+database
+yes
 php artisan p:environment:database
-php artisan p:environment:mail
+mysql
+127.0.0.1
+3306
+panel
+panel
+$database_password
 php artisan migrate --seed --force
-php artisan p:user:make
 sudo crontab -e && echo "* * * * * php /var/www/pelican/artisan schedule:run >> /dev/null 2>&1" | sudo crontab -u root -
 chown -R www-data:www-data /var/www/pelican/* 
-EOF
+
 } >> tmp.txt 2>&1
 
 
@@ -546,7 +555,7 @@ EOF
     fuser -k 80/tcp
     fuser -k 443/tcp
     systemctl restart nginx
-    curl -sSL https://install.germandactyl.de/ | sudo bash -s -- -v1.11.3
+    #curl -sSL https://install.germandactyl.de/ | sudo bash -s -- -v1.11.3
 } >> tmp.txt 2>&1
 
 
