@@ -129,6 +129,14 @@ uninstall_pelican() {
 
     progress=0
     {
+     <<EOF 2>&1 | while IFS= read -r line; do
+6
+y
+y
+y
+y
+y
+EOF
         
             echo "$line" >> "$log_file"
             case "$line" in
