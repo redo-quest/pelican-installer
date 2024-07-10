@@ -4,7 +4,7 @@ Works on Debian and Ubuntu (ubuntu lts gives out a no support error but you can 
 Did not test it on other distros but it may also work on more..
 
 # Install
-```wget https://raw.githubusercontent.com/v182/pelican-installer/dev/install.sh```
+```wget https://raw.githubusercontent.com/redo-quest/pelican-installer/dev/install.sh```
 
 ```bash install.sh```
 
